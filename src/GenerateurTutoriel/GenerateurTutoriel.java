@@ -4,20 +4,26 @@
  * and open the template in the editor.
  */
 
-package myseaapp;
+package GenerateurTutoriel;
 
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.FileInputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.application.Application;
+import static javafx.application.Application.launch;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.event.EventHandler;
@@ -36,11 +42,11 @@ import javafx.stage.StageStyle;
  *
  * @author fgourdea
  */
-public class MySeaApp extends Application {
-    
+public class GenerateurTutoriel extends Application {    
     public List<String> textes = new ArrayList<String>();
     public List<String> nomPhotoOuVideos = new ArrayList<String>();
     public List<String> typeTags = new ArrayList<String>();
+    public List<String> resteDocuments = new ArrayList<String>();
     
     private ImageView sea0;
     private ImageView quit;
@@ -61,7 +67,7 @@ public class MySeaApp extends Application {
         
         charger();
         
-        sea0 = new ImageView(new Image(MySeaApp.class.getResourceAsStream("images/Nintendo.png")));
+        sea0 = new ImageView(new Image(GenerateurTutoriel.class.getResourceAsStream("images/Nintendo.png")));
         sea0Clip = new Rectangle(300, 220);        
         sea0Clip.setArcHeight(70);
         sea0Clip.setArcWidth(70);
@@ -80,7 +86,7 @@ public class MySeaApp extends Application {
     }
 
     private void charger() {
-        ImageView monImage = new ImageView(new Image(MySeaApp.class.getResourceAsStream("images/glyphicons-202-upload.png")));
+        ImageView monImage = new ImageView(new Image(GenerateurTutoriel.class.getResourceAsStream("images/glyphicons-202-upload.png")));
         charger.setText("Charger");
         charger.setLayoutX(125);
         charger.setLayoutY(115);
@@ -136,7 +142,7 @@ public class MySeaApp extends Application {
     }
 
     private void setQuit() {
-        quit = new ImageView(new Image(MySeaApp.class.getResourceAsStream("images/glyphicons-193-circle-remove.png")));
+        quit = new ImageView(new Image(GenerateurTutoriel.class.getResourceAsStream("images/glyphicons-193-circle-remove.png")));
         quit.setFitHeight(25);
         quit.setFitWidth(25);
         quit.setX(270);
@@ -158,80 +164,153 @@ public class MySeaApp extends Application {
     }
     
     private String parseItem(String remainingDocumentValue) {
-	if (remainingDocumentValue.indexOf("<photo>") > -1) {
+        int posPhoto = remainingDocumentValue.indexOf("<photo>");
+        int posVideo = remainingDocumentValue.indexOf("<video>");
+        
+	if (posPhoto > -1 && (posVideo == -1 || posPhoto < posVideo)) {
+                System.out.println("Photo found");
 		int posDeb = remainingDocumentValue.indexOf("<photo>")+7;
 		int posFin = remainingDocumentValue.indexOf("</photo>");	
 		String nomPhoto = remainingDocumentValue.substring(posDeb, posFin);
 		String texte = remainingDocumentValue.substring(0, posDeb-7);
 		callBuilder(texte, nomPhoto,remainingDocumentValue.substring(posDeb-7, posDeb));
-		return(remainingDocumentValue.substring(posFin+8,remainingDocumentValue.length()));
+                String finDocument = remainingDocumentValue.substring(posFin+8,remainingDocumentValue.length());
+                resteDocuments.add(finDocument);
+		return(finDocument);
 	}
-	else if (remainingDocumentValue.indexOf("<video>") > -1) {
+	else if (posVideo > -1 && (posPhoto == -1 || posVideo < posPhoto)) {
+                System.out.println("Video found");
 		int posDeb = remainingDocumentValue.indexOf("<video>")+7;
 		int posFin = remainingDocumentValue.indexOf("</video>");
-                System.out.println("Video tag : pos deb " + posDeb + "pos fin : " + posFin);
 		String nomVideo = remainingDocumentValue.substring(posDeb, posFin);
 		String texte = remainingDocumentValue.substring(0, posDeb-7);
 		callBuilder(texte, nomVideo,remainingDocumentValue.substring(posDeb-7, posDeb));
-		return(remainingDocumentValue.substring(posFin+8,remainingDocumentValue.length()));
+                String finDocument = remainingDocumentValue.substring(posFin+8,remainingDocumentValue.length());
+                resteDocuments.add(finDocument);
+		return(finDocument);
 	}
 	else {
+                System.out.println("No tag found");
 		String texte = remainingDocumentValue.substring(0, remainingDocumentValue.length());
-		callBuilder(texte, "rien", "rien");
+		callBuilder(texte, "", "");
+                resteDocuments.add("");
 		return("");
 	}
     }
     
-    private void callBuilder(String texte, String nomPhotoOuVideo, String typeTag) {
-        
-        textes.add(texte);
-        nomPhotoOuVideos.add(nomPhotoOuVideo);
-        typeTags.add(typeTag);
-        
-	System.out.println("Le callBuilder marche --> texte : " + texte + ", chemin : " + nomPhotoOuVideo + ", tag : " + typeTag);
-                
+    private void callBuilder(String texte, String nomPhotoOuVideo, String typeTag) {        
+            textes.add(texte);
+            nomPhotoOuVideos.add(nomPhotoOuVideo);
+            typeTags.add(typeTag);
+            
+            String response;
+
+            System.out.println("Le callBuilder marche --> texte : " + texte + ", chemin : " + nomPhotoOuVideo + ", tag : " + typeTag);
+
         try {
-            String url = "https://selfsolve.apple.com/wcResults.do";
-            URL obj = new URL(url);
-            HttpURLConnection connexion = (HttpURLConnection) obj.openConnection();
-
-            //add reuqest header
-            connexion.setRequestMethod("POST");        
-            connexion.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
-
-            String urlParameters = "sn=C02G8416DRJM&cn=&locale=&caller=&num=12345";
-
-            // Send post request
-            connexion.setDoOutput(true);
-            DataOutputStream wr = new DataOutputStream(connexion.getOutputStream());
-            wr.writeBytes(urlParameters);
-            wr.flush();
-            wr.close();
-
-            int responseCode = connexion.getResponseCode();
-            System.out.println("\nSending 'POST' request to URL : " + url);
-            System.out.println("Post parameters : " + urlParameters);
-            System.out.println("Response Code : " + responseCode);
-
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(connexion.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-            }
-            in.close();
-
-            //print result
-            System.out.println(response.toString());            
-        }
-        
-        catch(IOException ex) {
+            response = sendPost(texte, nomPhotoOuVideo, typeTag);
+            System.out.println(response);
+            } 
+            
+        catch (Exception ex) {
+            Logger.getLogger(GenerateurTutoriel.class.getName()).log(Level.SEVERE, null, ex);
             System.out.println(ex.getMessage());
         }
+
     }
 
+//    // HTTP GET request
+//    public void sendGet() throws Exception { 
+//        String url = "http://localhost/TutoSQLite/ok.php";
+//
+//        URL obj = new URL(url);
+//        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+//
+//        // optional default is GET
+//        con.setRequestMethod("GET");
+//
+//        int responseCode = con.getResponseCode();
+//        System.out.println("\nSending 'GET' request to URL : " + url);
+//        System.out.println("Response Code : " + responseCode);
+//
+//        BufferedReader in = new BufferedReader(
+//                new InputStreamReader(con.getInputStream()));
+//        String inputLine;
+//        StringBuffer response = new StringBuffer();
+//
+//        while ((inputLine = in.readLine()) != null) {
+//                response.append(inputLine);
+//        }
+//        in.close();
+//
+//        //print result
+//        System.out.println(response.toString()); 
+//    }
+        
+    public String sendPost(String texte, String nomPhotoOuVideo, String typeTag) throws Exception {
+        String url = "http://localhost/TutoSQLite/ok.php";
+        URL obj = new URL(url);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        
+        StringBuffer urlParameters = new StringBuffer();
+        urlParameters.append("texte = ").append(URLEncoder.encode(texte));
+        urlParameters.append(" & mediaContent = ").append(URLEncoder.encode(getBytesAsBase64(getFileContentAsByteArray(nomPhotoOuVideo))));
+        urlParameters.append(" & type = ").append(URLEncoder.encode(typeTag));
+        
+        //add request header
+        con.setRequestMethod("POST");
+        con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+        
+        con.setDoOutput(true);
+        DataOutputStream writer = new DataOutputStream(con.getOutputStream());
+        writer.writeBytes(urlParameters.toString());
+        writer.flush();
+        writer.close();
+        
+        /*
+        // Send post request
+        con.setDoOutput(true);
+        DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+        wr.writeBytes(urlParameters);
+        wr.flush();
+        wr.close();
+        */
+        
+        int responseCode = con.getResponseCode();
+        System.out.println("\nSending 'POST' request to URL : " + url);
+        System.out.println("Post parameters : " + urlParameters);
+        System.out.println("Response Code : " + responseCode);
+
+        BufferedReader in = new BufferedReader(
+        new InputStreamReader(con.getInputStream()));
+        String inputLine;
+        StringBuffer response = new StringBuffer();
+
+        while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+        }
+        in.close();
+
+        //print result
+        System.out.println(response.toString());
+        return response.toString();
+    }
+    
+    private byte[] getFileContentAsByteArray(String path) {
+        File file = new File(path);
+        byte[] bytes = new byte[(int)file.length()];
+        
+        FileInputStream fileToConvert = new FileInputStream(file);
+        fileToConvert.read(bytes);
+        fileToConvert.close();
+        return bytes;
+    }
+        
+    private String getBytesAsBase64(byte[] bytes){
+        Base64.Encoder encoder = new Base64.Encoder();
+        return encoder.encode(bytes);
+    }
+    
     /**
      * The main() method is ignored in correctly deployed JavaFX application.
      * main() serves only as fallback in case the application can not be
@@ -242,5 +321,5 @@ public class MySeaApp extends Application {
      */
     public static void main(String[] args) {
         launch(args);
-    }    
+    }
 }
