@@ -300,9 +300,16 @@ public class GenerateurTutoriel extends Application {
         File file = new File(path);
         byte[] bytes = new byte[(int)file.length()];
         
+        try {
         FileInputStream fileToConvert = new FileInputStream(file);
         fileToConvert.read(bytes);
         fileToConvert.close();
+        }
+        
+        catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        
         return bytes;
     }
         
