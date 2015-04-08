@@ -5,7 +5,7 @@
  */
 package GenerateurTutorielTest;
 
-import javafx.stage.Stage;
+import GenerateurTutoriel.GenerateurTutoriel;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -88,7 +88,7 @@ public class GenerateurTutorielTest {
         int i = -1;
         for (String fileContent : fileContents) {
             i++;
-            MySeaApp instance = new MySeaApp();
+            GenerateurTutoriel instance = new GenerateurTutoriel();
             instance.parseDocument(fileContent);
 
             for (int j = 0; j < textes[i].length; j++) {
@@ -109,7 +109,7 @@ public class GenerateurTutorielTest {
     @Test
     public void testSendPost() throws Exception {
         System.out.println("sendPost");
-        MySeaApp instance = new MySeaApp();
+        GenerateurTutoriel instance = new GenerateurTutoriel();
         String expResult = "ok";
         String result = instance.sendPost("blablabla","C://video","<video>");
         assertEquals(expResult, result);

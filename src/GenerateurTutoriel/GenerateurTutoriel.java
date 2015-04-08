@@ -6,7 +6,6 @@
 
 package GenerateurTutoriel;
 
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -37,6 +36,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.apache.commons.codec.binary.Base64;
 
 /**
  *
@@ -314,8 +314,8 @@ public class GenerateurTutoriel extends Application {
     }
         
     private String getBytesAsBase64(byte[] bytes){
-        Base64.Encoder encoder = new Base64.Encoder();
-        return encoder.encode(bytes);
+        Base64 base64 = new Base64();
+        return base64.encodeAsString(bytes);
     }
     
     /**
